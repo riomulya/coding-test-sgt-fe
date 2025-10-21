@@ -541,6 +541,13 @@ export default function ProductsPage() {
               >
                 Total: {total} products
               </p>
+              {user && (
+                <p
+                  style={{ margin: '4px 0 0 0', color: '#999', fontSize: '12px' }}
+                >
+                  Welcome, {user.email} {user.displayName && `(${user.displayName})`}
+                </p>
+              )}
             </Col>
             <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
               <Space wrap>

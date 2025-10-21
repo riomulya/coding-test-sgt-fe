@@ -5,16 +5,18 @@ import {
   User,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, googleProvider } from '@/lib/firebase';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string | null>;
 }
@@ -60,6 +62,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -73,7 +83,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<string | null> => {
     if (user) {
       try {
-        // Force refresh token if needed
         const token = await user.getIdToken(forceRefresh);
         return token;
       } catch (error) {
@@ -89,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     loading,
     login,
     signup,
+    loginWithGoogle,
     logout,
     getToken,
   };
