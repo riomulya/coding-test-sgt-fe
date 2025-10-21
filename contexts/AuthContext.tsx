@@ -68,7 +68,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const getToken = async (forceRefresh: boolean = false): Promise<string | null> => {
+  const getToken = async (
+    forceRefresh: boolean = false
+  ): Promise<string | null> => {
     if (user) {
       try {
         // Force refresh token if needed

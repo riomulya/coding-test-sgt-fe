@@ -17,6 +17,7 @@ import {
   Col,
   Typography,
   Avatar,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -71,7 +72,7 @@ interface ApiResponse {
 }
 
 export default function ProductsPage() {
-  const { logout, getToken } = useAuth();
+  const { logout, getToken, loading: authLoading, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -93,12 +94,24 @@ export default function ProductsPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Fetch products
+  // Fetch products - hanya jalankan jika user sudah login dan tidak loading
   const fetchProducts = useCallback(async () => {
+    if (authLoading || !user) {
+      console.log('Auth still loading or user not logged in');
+      return;
+    }
+
     setLoading(true);
     try {
       const token = await getToken();
       console.log('Token:', token);
+
+      if (!token) {
+        console.error('No token available');
+        message.error('Authentication failed');
+        return;
+      }
+
       const params = new URLSearchParams({
         limit: pageSize.toString(),
         offset: ((currentPage - 1) * pageSize).toString(),
@@ -111,14 +124,13 @@ export default function ProductsPage() {
       console.log('Fetching products with params:', params.toString());
       const response = await axios.get<ApiResponse>(`/api/products?${params}`, {
         headers: {
-          ...(token && { authorization: `Bearer ${token}` }),
+          authorization: `Bearer ${token}`,
         },
       });
 
       console.log('API Response:', response.data);
 
       if (response.data.is_success) {
-        // Perbaikan: data langsung sebagai array, bukan data.products
         setProducts(response.data.data || []);
         setTotal(response.data.pagination?.total || 0);
       } else {
@@ -131,7 +143,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearchTerm, getToken]);
+  }, [currentPage, pageSize, debouncedSearchTerm, getToken, authLoading, user]);
 
   useEffect(() => {
     fetchProducts();
@@ -484,6 +496,22 @@ export default function ProductsPage() {
       ),
     },
   ];
+
+  // Show loading spinner while auth is loading
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
+        <Spin size='large' />
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute>
