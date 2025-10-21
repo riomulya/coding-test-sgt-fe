@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        // Forward authorization header
         ...(request.headers.get('authorization') && {
           authorization: request.headers.get('authorization')!,
         }),

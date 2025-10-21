@@ -25,10 +25,13 @@ import {
   SearchOutlined,
   ReloadOutlined,
   PictureOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import axios from 'axios';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -68,6 +71,7 @@ interface ApiResponse {
 }
 
 export default function ProductsPage() {
+  const { logout, getToken } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -93,6 +97,8 @@ export default function ProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
+      const token = await getToken();
+      console.log('Token:', token);
       const params = new URLSearchParams({
         limit: pageSize.toString(),
         offset: ((currentPage - 1) * pageSize).toString(),
@@ -103,7 +109,11 @@ export default function ProductsPage() {
       }
 
       console.log('Fetching products with params:', params.toString());
-      const response = await axios.get<ApiResponse>(`/api/products?${params}`);
+      const response = await axios.get<ApiResponse>(`/api/products?${params}`, {
+        headers: {
+          ...(token && { authorization: `Bearer ${token}` }),
+        },
+      });
 
       console.log('API Response:', response.data);
 
@@ -121,7 +131,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearchTerm]);
+  }, [currentPage, pageSize, debouncedSearchTerm, getToken]);
 
   useEffect(() => {
     fetchProducts();
@@ -164,10 +174,16 @@ export default function ProductsPage() {
   // Handle delete product
   const handleDelete = async (productId: string) => {
     try {
+      const token = await getToken();
       const response = await axios.delete(
-        `/api/product?product_id=${productId}`
+        `/api/product?product_id=${productId}`,
+        {
+          headers: {
+            ...(token && { authorization: `Bearer ${token}` }),
+          },
+        }
       );
-
+      console.log(response.data);
       if (response.data.is_success) {
         message.success('Product deleted successfully');
         fetchProducts(); // Refresh the list
@@ -176,19 +192,28 @@ export default function ProductsPage() {
       }
     } catch (error) {
       console.error('Error deleting product:', error);
-      message.error('Failed to delete product');
+      message.error(`Failed to delete product ${error}`);
     }
   };
 
   // Handle form submit
   const handleSubmit = async (values: ProductFormData) => {
     try {
+      const token = await getToken();
+      const headers = {
+        ...(token && { authorization: `Bearer ${token}` }),
+      };
+
       if (editingProduct) {
         // Update product
-        const response = await axios.put('/api/product', {
-          product_id: editingProduct.product_id,
-          ...values,
-        });
+        const response = await axios.put(
+          '/api/product',
+          {
+            product_id: editingProduct.product_id,
+            ...values,
+          },
+          { headers }
+        );
 
         if (response.data.is_success) {
           message.success('Product updated successfully');
@@ -199,7 +224,7 @@ export default function ProductsPage() {
         }
       } else {
         // Create product
-        const response = await axios.post('/api/product', values);
+        const response = await axios.post('/api/product', values, { headers });
 
         if (response.data.is_success) {
           message.success('Product created successfully');
@@ -212,6 +237,17 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Error saving product:', error);
       message.error('Failed to save product');
+    }
+  };
+
+  // Add logout handler
+  const handleLogout = async () => {
+    try {
+      await logout();
+      message.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      message.error('Logout failed');
     }
   };
 
@@ -429,7 +465,7 @@ export default function ProductsPage() {
             </Button>
             <Popconfirm
               title='Are you sure you want to delete this product?'
-              onConfirm={() => handleDelete(record.product_id)}
+              onConfirm={() => handleDelete(record.product_id.trim())}
               okText='Yes'
               cancelText='No'
             >
@@ -450,213 +486,224 @@ export default function ProductsPage() {
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      style={{ padding: '24px', minHeight: '100vh', background: '#f5f5f5' }}
-    >
-      <Card
-        style={{
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        }}
+    <ProtectedRoute>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{ padding: '24px', minHeight: '100vh', background: '#f5f5f5' }}
       >
-        <Row
-          justify='space-between'
-          align='middle'
-          style={{ marginBottom: 24 }}
+        <Card
+          style={{
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          }}
         >
-          <Col xs={24} sm={12}>
-            <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-              Product Management
-            </Title>
-            <p style={{ margin: '8px 0 0 0', color: '#666', fontSize: '14px' }}>
-              Total: {total} products
-            </p>
-          </Col>
-          <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
-            <Space wrap>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchProducts}
-                loading={loading}
+          <Row
+            justify='space-between'
+            align='middle'
+            style={{ marginBottom: 24 }}
+          >
+            <Col xs={24} sm={12}>
+              <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+                Product Management
+              </Title>
+              <p
+                style={{ margin: '8px 0 0 0', color: '#666', fontSize: '14px' }}
               >
-                Refresh
-              </Button>
-              <Button
-                type='primary'
-                icon={<PlusOutlined />}
-                onClick={handleCreate}
+                Total: {total} products
+              </p>
+            </Col>
+            <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
+              <Space wrap>
+                <Button icon={<LogoutOutlined />} onClick={handleLogout} danger>
+                  Logout
+                </Button>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={fetchProducts}
+                  loading={loading}
+                >
+                  Refresh
+                </Button>
+                <Button
+                  type='primary'
+                  icon={<PlusOutlined />}
+                  onClick={handleCreate}
+                  size='large'
+                >
+                  Create Product
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={24} sm={12} md={8}>
+              <Input
+                placeholder='Search products...'
+                prefix={<SearchOutlined />}
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                allowClear
                 size='large'
-              >
-                Create Product
-              </Button>
-            </Space>
-          </Col>
-        </Row>
-
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} md={8}>
-            <Input
-              placeholder='Search products...'
-              prefix={<SearchOutlined />}
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              allowClear
-              size='large'
-            />
-          </Col>
-        </Row>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Table
-            columns={columns}
-            dataSource={products}
-            rowKey='product_id'
-            loading={loading}
-            pagination={false}
-            scroll={{ x: 1000 }}
-            size='middle'
-            style={{ borderRadius: '8px' }}
-          />
-        </motion.div>
-
-        {total > 0 && (
-          <Row justify='center' style={{ marginTop: 24 }}>
-            <Col>
-              <Pagination
-                current={currentPage}
-                total={total}
-                pageSize={pageSize}
-                onChange={handlePageChange}
-                onShowSizeChange={handlePageChange}
-                showSizeChanger
-                showQuickJumper
-                showTotal={(total, range) =>
-                  `Showing ${range[0]}-${range[1]} of ${total} products`
-                }
               />
             </Col>
           </Row>
-        )}
-      </Card>
 
-      <Modal
-        title={editingProduct ? 'Edit Product' : 'Create Product'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-        width={600}
-        destroyOnHidden={true}
-        style={{ borderRadius: '12px' }}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Form
-            form={form}
-            layout='vertical'
-            onFinish={handleSubmit}
-            autoComplete='off'
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           >
-            <Form.Item
-              name='product_title'
-              label='Product Title'
-              rules={[
-                { required: true, message: 'Please input product title!' },
-                { min: 3, message: 'Title must be at least 3 characters!' },
-              ]}
+            <Table
+              columns={columns}
+              dataSource={products}
+              rowKey='product_id'
+              loading={loading}
+              pagination={false}
+              scroll={{ x: 1000 }}
+              size='middle'
+              style={{ borderRadius: '8px' }}
+            />
+          </motion.div>
+
+          {total > 0 && (
+            <Row justify='center' style={{ marginTop: 24 }}>
+              <Col>
+                <Pagination
+                  current={currentPage}
+                  total={total}
+                  pageSize={pageSize}
+                  onChange={handlePageChange}
+                  onShowSizeChange={handlePageChange}
+                  showSizeChanger
+                  showQuickJumper
+                  showTotal={(total, range) =>
+                    `Showing ${range[0]}-${range[1]} of ${total} products`
+                  }
+                />
+              </Col>
+            </Row>
+          )}
+        </Card>
+
+        <Modal
+          title={editingProduct ? 'Edit Product' : 'Create Product'}
+          open={modalVisible}
+          onCancel={() => setModalVisible(false)}
+          footer={null}
+          width={600}
+          destroyOnHidden={true}
+          style={{ borderRadius: '12px' }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Form
+              form={form}
+              layout='vertical'
+              onFinish={handleSubmit}
+              autoComplete='off'
             >
-              <Input placeholder='Enter product title' size='large' />
-            </Form.Item>
+              <Form.Item
+                name='product_title'
+                label='Product Title'
+                rules={[
+                  { required: true, message: 'Please input product title!' },
+                  { min: 3, message: 'Title must be at least 3 characters!' },
+                ]}
+              >
+                <Input placeholder='Enter product title' size='large' />
+              </Form.Item>
 
-            <Form.Item
-              name='product_price'
-              label='Price'
-              rules={[
-                { required: true, message: 'Please input product price!' },
-                { type: 'number', min: 0, message: 'Price must be positive!' },
-              ]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder='Enter product price'
-                min={0}
-                size='large'
-                formatter={(value) =>
-                  `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                }
-                // parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-              />
-            </Form.Item>
-
-            <Form.Item name='product_description' label='Description'>
-              <TextArea
-                rows={4}
-                placeholder='Enter product description'
-                maxLength={500}
-                showCount
-                size='large'
-              />
-            </Form.Item>
-
-            <Form.Item name='product_category' label='Category'>
-              <Input placeholder='Enter product category' size='large' />
-            </Form.Item>
-
-            <Form.Item
-              name='product_image'
-              label='Image URL'
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (!value) {
-                      return Promise.resolve(); // Optional field
-                    }
-
-                    // Simple URL validation
-                    if (
-                      !value.startsWith('http://') &&
-                      !value.startsWith('https://')
-                    ) {
-                      return Promise.reject(
-                        new Error(
-                          'Please enter a valid URL starting with http:// or https://'
-                        )
-                      );
-                    }
-
-                    return Promise.resolve();
+              <Form.Item
+                name='product_price'
+                label='Price'
+                rules={[
+                  { required: true, message: 'Please input product price!' },
+                  {
+                    type: 'number',
+                    min: 0,
+                    message: 'Price must be positive!',
                   },
-                },
-              ]}
-            >
-              <Input
-                placeholder='Enter image URL (e.g., https://example.com/image.jpg)'
-                size='large'
-              />
-            </Form.Item>
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder='Enter product price'
+                  min={0}
+                  size='large'
+                  formatter={(value) =>
+                    `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                  }
+                  // parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                />
+              </Form.Item>
 
-            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-              <Space>
-                <Button onClick={() => setModalVisible(false)} size='large'>
-                  Cancel
-                </Button>
-                <Button type='primary' htmlType='submit' size='large'>
-                  {editingProduct ? 'Update' : 'Create'}
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </motion.div>
-      </Modal>
-    </motion.div>
+              <Form.Item name='product_description' label='Description'>
+                <TextArea
+                  rows={4}
+                  placeholder='Enter product description'
+                  maxLength={500}
+                  showCount
+                  size='large'
+                />
+              </Form.Item>
+
+              <Form.Item name='product_category' label='Category'>
+                <Input placeholder='Enter product category' size='large' />
+              </Form.Item>
+
+              <Form.Item
+                name='product_image'
+                label='Image URL'
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (!value) {
+                        return Promise.resolve(); // Optional field
+                      }
+
+                      // Simple URL validation
+                      if (
+                        !value.startsWith('http://') &&
+                        !value.startsWith('https://')
+                      ) {
+                        return Promise.reject(
+                          new Error(
+                            'Please enter a valid URL starting with http:// or https://'
+                          )
+                        );
+                      }
+
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
+                <Input
+                  placeholder='Enter image URL (e.g., https://example.com/image.jpg)'
+                  size='large'
+                />
+              </Form.Item>
+
+              <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                <Space>
+                  <Button onClick={() => setModalVisible(false)} size='large'>
+                    Cancel
+                  </Button>
+                  <Button type='primary' htmlType='submit' size='large'>
+                    {editingProduct ? 'Update' : 'Create'}
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </motion.div>
+        </Modal>
+      </motion.div>
+    </ProtectedRoute>
   );
 }
