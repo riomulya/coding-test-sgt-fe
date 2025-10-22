@@ -271,7 +271,7 @@ export default function ProductsPage() {
       title: '#',
       key: 'index',
       width: '5%',
-      render: (_, __, index: number) => (
+      render: (_: any, __: any, index: number) => (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -467,7 +467,7 @@ export default function ProductsPage() {
       title: 'Actions',
       key: 'actions',
       width: '16%',
-      render: (_, record: Product) => (
+      render: (_: any, record: Product) => (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}

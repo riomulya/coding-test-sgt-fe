@@ -13,6 +13,7 @@ import {
   Space,
   Tag,
   Divider,
+  Modal,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -36,8 +37,8 @@ interface Product {
   product_title: string;
   product_price: number;
   product_description?: string;
-  product_image?: string;
-  product_category?: string;
+  product_image: string;
+  product_category: string;
   created_timestamp: string;
   updated_timestamp: string;
 }
@@ -55,6 +56,8 @@ export default function ProductDetailPage() {
   const { getToken } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const productId = params.id as string;
 
@@ -101,7 +104,12 @@ export default function ProductDetailPage() {
     router.push(`/products/${productId}/edit`);
   };
 
-  const handleDelete = async () => {
+  const showDeleteModal = () => {
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
       const token = await getToken();
       if (!token) {
@@ -120,6 +128,7 @@ export default function ProductDetailPage() {
 
       if (response.data.is_success) {
         message.success('Product deleted successfully');
+        setDeleteModalVisible(false);
         router.push('/products');
       } else {
         message.error('Failed to delete product');
@@ -127,7 +136,13 @@ export default function ProductDetailPage() {
     } catch (error) {
       console.error('Error deleting product:', error);
       message.error('Failed to delete product');
+    } finally {
+      setDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModalVisible(false);
   };
 
   const isValidImageUrl = (url: string) => {
@@ -228,7 +243,7 @@ export default function ProductDetailPage() {
                   type='primary'
                   danger
                   icon={<DeleteOutlined />}
-                  onClick={handleDelete}
+                  onClick={showDeleteModal}
                   size='large'
                 >
                   Delete Product
@@ -398,6 +413,31 @@ export default function ProductDetailPage() {
             </Col>
           </Row>
         </Card>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          title='Confirm Delete'
+          open={deleteModalVisible}
+          onOk={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+          okText='Delete'
+          cancelText='Cancel'
+          okButtonProps={{
+            danger: true,
+            loading: deleting,
+          }}
+          cancelButtonProps={{
+            disabled: deleting,
+          }}
+        >
+          <p>
+            Are you sure you want to delete the product{' '}
+            <strong>"{product?.product_title}"</strong>?
+          </p>
+          <p style={{ color: '#ff4d4f', marginBottom: 0 }}>
+            This action cannot be undone.
+          </p>
+        </Modal>
       </motion.div>
     </ProtectedRoute>
   );

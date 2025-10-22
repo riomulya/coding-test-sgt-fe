@@ -10,6 +10,7 @@ import {
   InputNumber,
   Typography,
   message,
+  Space,
   Spin,
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
@@ -155,7 +156,7 @@ export default function EditProductPage() {
           style={{
             borderRadius: '16px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-            maxWidth: '800px',
+            maxWidth: '600px',
             margin: '0 auto',
           }}
         >
@@ -177,6 +178,7 @@ export default function EditProductPage() {
             onFinish={handleSubmit}
             autoComplete='off'
             size='large'
+            style={{ marginTop: '8px' }}
           >
             <Form.Item
               name='product_title'
@@ -185,6 +187,7 @@ export default function EditProductPage() {
                 { required: true, message: 'Please input product title!' },
                 { min: 3, message: 'Title must be at least 3 characters!' },
               ]}
+              style={{ marginBottom: '16px' }}
             >
               <Input placeholder='Enter product title' />
             </Form.Item>
@@ -200,6 +203,7 @@ export default function EditProductPage() {
                   message: 'Price must be positive!',
                 },
               ]}
+              style={{ marginBottom: '16px' }}
             >
               <InputNumber
                 style={{ width: '100%' }}
@@ -211,16 +215,24 @@ export default function EditProductPage() {
               />
             </Form.Item>
 
-            <Form.Item name='product_description' label='Description'>
+            <Form.Item
+              name='product_description'
+              label='Description'
+              style={{ marginBottom: '16px' }}
+            >
               <TextArea
-                rows={4}
+                rows={3}
                 placeholder='Enter product description'
                 maxLength={500}
                 showCount
               />
             </Form.Item>
 
-            <Form.Item name='product_category' label='Category'>
+            <Form.Item
+              name='product_category'
+              label='Category'
+              style={{ marginBottom: '16px' }}
+            >
               <Input placeholder='Enter product category' />
             </Form.Item>
 
@@ -249,12 +261,13 @@ export default function EditProductPage() {
                   },
                 },
               ]}
+              style={{ marginBottom: '24px' }}
             >
               <Input placeholder='Enter image URL (e.g., https://example.com/image.jpg)' />
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-              <Space>
+              <Space size='middle'>
                 <Button onClick={() => router.push(`/products/${productId}`)}>
                   Cancel
                 </Button>
