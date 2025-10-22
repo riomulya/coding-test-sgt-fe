@@ -18,7 +18,6 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-
 ## With Firebase Authentication
 
 env.local tidak di masukan ke dalam gitignore untuk keperluan testing
@@ -28,6 +27,8 @@ env.local tidak di masukan ke dalam gitignore untuk keperluan testing
 pada firebase-client
 
 awal seperti ini
+
+```bash
     async getFirebaseId(authorization: string, namespace = this.webNamespace) {
       try {
         this.initializeFirebaseAdmin();
@@ -38,12 +39,14 @@ awal seperti ini
         );
       }
     }
+```
 
 diganti menjadi seperti ini
 
-  async getFirebaseId(authorization: string, namespace = this.webNamespace) {
-    try {
-      this.initializeFirebaseAdmin();
+```bash
+async getFirebaseId(authorization: string, namespace = this.webNamespace) {
+try {
+this.initializeFirebaseAdmin();
 
       //  Log untuk debugging (jangan lupa hapus di production)
       console.log(
@@ -78,7 +81,6 @@ diganti menjadi seperti ini
         'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token in Authorization.'
       );
     }
-  }
 
-
-  
+}
+```
