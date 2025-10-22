@@ -36,9 +36,9 @@ export default function LoginPage() {
       await loginWithGoogle();
       message.success('Google login successful!');
       router.push('/products');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Google login error:', error);
-      message.error(error.message || 'Google login failed');
+      message.error('Google login failed');
     } finally {
       setGoogleLoading(false);
     }

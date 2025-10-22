@@ -49,7 +49,7 @@ import { ProductModal } from '@/components/products/ProductModal';
 import { ProductControls } from '@/components/products/ProductControls';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { createProductColumns } from '@/components/products/ProductColumns'; // Import columns
-
+import { Product, ProductFormData, ApiResponse } from '@/types/product.types';
 const { Title, Text } = Typography;
 
 export default function ProductsPage() {
@@ -84,7 +84,7 @@ export default function ProductsPage() {
   } = useProducts();
 
   // Handle form submit dengan form instance
-  const handleFormSubmit = async (values: any) => {
+  const handleFormSubmit = async (values: ProductFormData) => {
     await handleSubmit(values);
     form.resetFields();
   };
@@ -96,7 +96,7 @@ export default function ProductsPage() {
   };
 
   // Handle edit product dengan set form values
-  const handleEditProduct = (product: any) => {
+  const handleEditProduct = (product: ProductFormData) => {
     form.setFieldsValue({
       product_title: product.product_title,
       product_price: product.product_price,
@@ -104,7 +104,7 @@ export default function ProductsPage() {
       product_image: product.product_image,
       product_category: product.product_category,
     });
-    handleEdit(product);
+    handleEdit(product as Product);
   };
 
   // Add logout handler
