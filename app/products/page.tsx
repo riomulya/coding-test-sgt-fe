@@ -18,7 +18,16 @@ import {
   Typography,
   Avatar,
   Spin,
+  Statistic,
+  Tag,
+  Tooltip,
+  Badge,
+  Drawer,
+  FloatButton,
+  Affix,
+  Grid,
 } from 'antd';
+
 import {
   PlusOutlined,
   EditOutlined,
@@ -27,6 +36,15 @@ import {
   ReloadOutlined,
   PictureOutlined,
   LogoutOutlined,
+  ShoppingCartOutlined,
+  DollarOutlined,
+  TagsOutlined,
+  EyeOutlined,
+  FilterOutlined,
+  MenuOutlined,
+  CloseOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -35,7 +53,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 interface Product {
@@ -74,6 +92,9 @@ interface ApiResponse {
 
 export default function ProductsPage() {
   const { logout, getToken, loading: authLoading, user } = useAuth();
+  const { useBreakpoint } = Grid;
+  const screens = useBreakpoint();
+
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -84,6 +105,10 @@ export default function ProductsPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form] = Form.useForm();
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [totalValue, setTotalValue] = useState(0);
 
   // Debounced search
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -133,8 +158,23 @@ export default function ProductsPage() {
       console.log('API Response:', response.data);
 
       if (response.data.is_success) {
-        setProducts(response.data.data || []);
+        const fetchedProducts = response.data.data || [];
+        setProducts(fetchedProducts);
         setTotal(response.data.pagination?.total || 0);
+
+        // Calculate statistics
+        const uniqueCategories = [
+          ...new Set(
+            fetchedProducts.map((p) => p.product_category).filter(Boolean)
+          ),
+        ];
+        setCategories(uniqueCategories as string[]);
+
+        const totalProductValue = fetchedProducts.reduce(
+          (sum, product) => sum + (product.product_price || 0),
+          0
+        );
+        setTotalValue(totalProductValue);
       } else {
         message.error('Failed to fetch products');
         console.error('API Error:', response.data);
@@ -505,6 +545,175 @@ export default function ProductsPage() {
     },
   ];
 
+  //  Statistics Cards
+  const StatCard = ({ title, value, icon, color, prefix }: any) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <Card
+        style={{
+          borderRadius: '16px',
+          background: `linear-gradient(135deg, ${color}15, ${color}05)`,
+          border: `1px solid ${color}30`,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+        }}
+      >
+        <Row align='middle' gutter={16}>
+          <Col>
+            <div
+              style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '12px',
+                background: `linear-gradient(135deg, ${color}, ${color}CC)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: 'white',
+              }}
+            >
+              {icon}
+            </div>
+          </Col>
+          <Col flex={1}>
+            <Statistic
+              title={title}
+              value={value}
+              prefix={prefix}
+              valueStyle={{ color, fontSize: '24px', fontWeight: 'bold' }}
+              // titleStyle={{ color: '#666', fontSize: '14px' }}
+            />
+          </Col>
+        </Row>
+      </Card>
+    </motion.div>
+  );
+
+  // Grid View Component
+  const ProductGrid = () => (
+    <Row gutter={[24, 24]}>
+      {products.map((product, index) => (
+        <Col xs={24} sm={12} md={8} lg={6} key={product.product_id}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            whileHover={{ scale: 1.02, y: -5 }}
+          >
+            <Card
+              hoverable
+              style={{
+                borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                overflow: 'hidden',
+                height: '100%',
+              }}
+              cover={
+                <div style={{ height: '200px', position: 'relative' }}>
+                  {product.product_image &&
+                  product.product_image.startsWith('http') ? (
+                    <Image
+                      src={product.product_image}
+                      alt={product.product_title}
+                      fill
+                      sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw'
+                      style={{ objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.setAttribute(
+                          'style',
+                          'display: flex'
+                        );
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    style={{
+                      display: product.product_image?.startsWith('http')
+                        ? 'none'
+                        : 'flex',
+                      width: '100%',
+                      height: '100%',
+                      background:
+                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '48px',
+                    }}
+                  >
+                    <ShoppingCartOutlined />
+                  </div>
+                </div>
+              }
+              actions={[
+                <Tooltip title='View Details'>
+                  <EyeOutlined
+                    key='view'
+                    onClick={() =>
+                      router.push(`/products/${product.product_id}`)
+                    }
+                  />
+                </Tooltip>,
+                <Tooltip title='Edit'>
+                  <EditOutlined
+                    key='edit'
+                    onClick={() => handleEdit(product)}
+                  />
+                </Tooltip>,
+                <Tooltip title='Delete'>
+                  <Popconfirm
+                    title='Delete this product?'
+                    onConfirm={() => handleDelete(product.product_id.trim())}
+                    okText='Yes'
+                    cancelText='No'
+                  >
+                    <DeleteOutlined key='delete' />
+                  </Popconfirm>
+                </Tooltip>,
+              ]}
+            >
+              <Card.Meta
+                title={
+                  <Text strong style={{ fontSize: '16px' }}>
+                    {product.product_title}
+                  </Text>
+                }
+                description={
+                  <div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <Text
+                        style={{
+                          fontSize: '18px',
+                          fontWeight: 'bold',
+                          color: '#52c41a',
+                        }}
+                      >
+                        ${product.product_price?.toLocaleString() || '0'}
+                      </Text>
+                    </div>
+                    {product.product_category && (
+                      <Tag color='blue' style={{ marginBottom: '8px' }}>
+                        {product.product_category}
+                      </Tag>
+                    )}
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      {product.product_description?.substring(0, 60)}...
+                    </div>
+                  </div>
+                }
+              />
+            </Card>
+          </motion.div>
+        </Col>
+      ))}
+    </Row>
+  );
+
   // Show loading spinner while auth is loading
   if (authLoading) {
     return (
@@ -514,136 +723,366 @@ export default function ProductsPage() {
           justifyContent: 'center',
           alignItems: 'center',
           height: '100vh',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         }}
       >
-        <Spin size='large' />
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Spin size='large' style={{ color: 'white' }} />
+        </motion.div>
       </div>
     );
   }
 
   return (
     <ProtectedRoute>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        style={{ padding: '24px', minHeight: '100vh', background: '#f5f5f5' }}
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        }}
       >
-        <Card
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
           style={{
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '24px',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
           }}
         >
-          <Row
-            justify='space-between'
-            align='middle'
-            style={{ marginBottom: 24 }}
-          >
-            <Col xs={24} sm={12}>
-              <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-                Product Management
-              </Title>
-              <p
-                style={{ margin: '8px 0 0 0', color: '#666', fontSize: '14px' }}
+          <Row justify='space-between' align='middle'>
+            <Col xs={18} sm={20} md={12}>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
               >
-                Total: {total} products
-              </p>
-              {user && (
-                <p
+                <Title
+                  level={1}
                   style={{
-                    margin: '4px 0 0 0',
-                    color: '#999',
-                    fontSize: '12px',
+                    margin: 0,
+                    color: 'white',
+                    fontSize: screens.xs ? '20px' : '32px',
                   }}
                 >
-                  Welcome, {user.email}{' '}
-                  {user.displayName && `(${user.displayName})`}
-                </p>
-              )}
+                  🛍️ Product Management
+                </Title>
+                {!screens.xs && (
+                  <>
+                    <Text
+                      style={{
+                        color: 'rgba(255,255,255,0.8)',
+                        fontSize: '16px',
+                      }}
+                    >
+                      Manage your products with style and efficiency
+                    </Text>
+                    {user && (
+                      <div style={{ marginTop: '8px' }}>
+                        <Text
+                          style={{
+                            color: 'rgba(255,255,255,0.7)',
+                            fontSize: '14px',
+                          }}
+                        >
+                          Welcome back, {user.displayName || user.email} 👋
+                        </Text>
+                      </div>
+                    )}
+                  </>
+                )}
+              </motion.div>
             </Col>
-            <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
-              <Space wrap>
-                <Button icon={<LogoutOutlined />} onClick={handleLogout} danger>
-                  Logout
-                </Button>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={fetchProducts}
-                  loading={loading}
-                >
-                  Refresh
-                </Button>
-                <Button
-                  type='primary'
-                  icon={<PlusOutlined />}
-                  onClick={handleCreate}
-                  size='large'
-                >
-                  Create Product
-                </Button>
-              </Space>
+            <Col xs={6} sm={4} md={12} style={{ textAlign: 'right' }}>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <Space wrap>
+                  <Button
+                    icon={<MenuOutlined />}
+                    onClick={() => setDrawerVisible(true)}
+                    style={{
+                      color: 'white',
+                      borderColor: 'rgba(255,255,255,0.3)',
+                    }}
+                    ghost
+                    size={screens.xs ? 'small' : 'middle'}
+                  >
+                    {!screens.xs && 'Menu'}
+                  </Button>
+                  <Button
+                    icon={<LogoutOutlined />}
+                    onClick={handleLogout}
+                    danger
+                    ghost
+                    size={screens.xs ? 'small' : 'middle'}
+                  >
+                    {!screens.xs && 'Logout'}
+                  </Button>
+                </Space>
+              </motion.div>
             </Col>
           </Row>
+        </motion.div>
 
-          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-            <Col xs={24} sm={12} md={8}>
-              <Input
-                placeholder='Search products...'
-                prefix={<SearchOutlined />}
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                allowClear
-                size='large'
+        {/* Main Content */}
+        <div style={{ padding: screens.xs ? '16px' : '32px 24px' }}>
+          {/* Statistics Cards */}
+          <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
+            <Col xs={24} sm={12} lg={6}>
+              <StatCard
+                title='Total Products'
+                value={total}
+                icon={<ShoppingCartOutlined />}
+                color='#1890ff'
+              />
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <StatCard
+                title='Categories'
+                value={categories.length}
+                icon={<TagsOutlined />}
+                color='#52c41a'
+              />
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <StatCard
+                title='Total Value'
+                value={totalValue}
+                icon={<DollarOutlined />}
+                color='#faad14'
+                prefix='$'
+              />
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <StatCard
+                title='Avg. Price'
+                value={total > 0 ? Math.round(totalValue / total) : 0}
+                icon={<DollarOutlined />}
+                color='#f5222d'
+                prefix='$'
               />
             </Col>
           </Row>
 
+          {/* Controls */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <Card
+              style={{
+                borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                marginBottom: '24px',
+              }}
+            >
+              <Row gutter={[16, 16]} align='middle'>
+                <Col xs={24} sm={12} md={8}>
+                  <Input
+                    placeholder='🔍 Search products...'
+                    prefix={<SearchOutlined />}
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    allowClear
+                    size='large'
+                    style={{ borderRadius: '12px' }}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={8}>
+                  <Space>
+                    <Button
+                      type={viewMode === 'table' ? 'primary' : 'default'}
+                      icon={<UnorderedListOutlined />}
+                      onClick={() => setViewMode('table')}
+                      size={screens.xs ? 'middle' : 'large'}
+                    >
+                      {!screens.xs && 'Table'}
+                    </Button>
+                    <Button
+                      type={viewMode === 'grid' ? 'primary' : 'default'}
+                      icon={<AppstoreOutlined />}
+                      onClick={() => setViewMode('grid')}
+                      size={screens.xs ? 'middle' : 'large'}
+                    >
+                      {!screens.xs && 'Grid'}
+                    </Button>
+                  </Space>
+                </Col>
+                <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
+                  <Space>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={fetchProducts}
+                      loading={loading}
+                      size={screens.xs ? 'middle' : 'large'}
+                    >
+                      {!screens.xs && 'Refresh'}
+                    </Button>
+                    <Button
+                      type='primary'
+                      icon={<PlusOutlined />}
+                      onClick={handleCreate}
+                      size={screens.xs ? 'middle' : 'large'}
+                      style={{ borderRadius: '12px' }}
+                    >
+                      {!screens.xs && 'Add Product'}
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
+          </motion.div>
+
+          {/* Content Area */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
           >
-            <Table
-              columns={columns}
-              dataSource={products}
-              rowKey='product_id'
-              loading={loading}
-              pagination={false}
-              scroll={{ x: 1000 }}
-              size='middle'
-              style={{ borderRadius: '8px' }}
-            />
+            {viewMode === 'table' ? (
+              <Card
+                style={{
+                  borderRadius: '16px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                }}
+              >
+                <Table
+                  columns={columns}
+                  dataSource={products}
+                  rowKey='product_id'
+                  loading={loading}
+                  pagination={false}
+                  scroll={{ x: 1000 }}
+                  size='middle'
+                  style={{ borderRadius: '8px' }}
+                />
+              </Card>
+            ) : (
+              <ProductGrid />
+            )}
           </motion.div>
 
+          {/* Pagination */}
           {total > 0 && (
-            <Row justify='center' style={{ marginTop: 24 }}>
-              <Col>
-                <Pagination
-                  current={currentPage}
-                  total={total}
-                  pageSize={pageSize}
-                  onChange={handlePageChange}
-                  onShowSizeChange={handlePageChange}
-                  showSizeChanger
-                  showQuickJumper
-                  showTotal={(total, range) =>
-                    `Showing ${range[0]}-${range[1]} of ${total} products`
-                  }
-                />
-              </Col>
-            </Row>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <Row justify='center' style={{ marginTop: '32px' }}>
+                <Col>
+                  <Card
+                    style={{
+                      borderRadius: '16px',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <Pagination
+                      current={currentPage}
+                      total={total}
+                      pageSize={pageSize}
+                      onChange={handlePageChange}
+                      onShowSizeChange={handlePageChange}
+                      showSizeChanger
+                      showQuickJumper
+                      showTotal={(total, range) =>
+                        `Showing ${range[0]}-${range[1]} of ${total} products`
+                      }
+                    />
+                  </Card>
+                </Col>
+              </Row>
+            </motion.div>
           )}
-        </Card>
+        </div>
 
+        {/* Floating Action Button */}
+        <FloatButton
+          icon={<PlusOutlined />}
+          type='primary'
+          style={{ right: 24, bottom: 24 }}
+          onClick={handleCreate}
+          tooltip='Add New Product'
+        />
+
+        {/* Mobile Drawer */}
+        <Drawer
+          title='Menu'
+          placement='right'
+          onClose={() => setDrawerVisible(false)}
+          open={drawerVisible}
+          width={280}
+        >
+          <Space direction='vertical' size='large' style={{ width: '100%' }}>
+            <Button
+              type='primary'
+              icon={<PlusOutlined />}
+              onClick={() => {
+                handleCreate();
+                setDrawerVisible(false);
+              }}
+              block
+              size='large'
+            >
+              Add Product
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                fetchProducts();
+                setDrawerVisible(false);
+              }}
+              loading={loading}
+              block
+              size='large'
+            >
+              Refresh
+            </Button>
+            <Button
+              icon={<LogoutOutlined />}
+              onClick={() => {
+                handleLogout();
+                setDrawerVisible(false);
+              }}
+              danger
+              block
+              size='large'
+            >
+              Logout
+            </Button>
+          </Space>
+        </Drawer>
+
+        {/* Product Modal */}
         <Modal
-          title={editingProduct ? 'Edit Product' : 'Create Product'}
+          title={
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+                {editingProduct ? '✏️ Edit Product' : '➕ Create Product'}
+              </Title>
+            </div>
+          }
           open={modalVisible}
           onCancel={() => setModalVisible(false)}
           footer={null}
           width={600}
-          destroyOnHidden={true}
-          style={{ borderRadius: '12px' }}
+          destroyOnClose={true}
+          style={{ borderRadius: '16px' }}
+          styles={{
+            body: { padding: '24px' },
+            header: { borderBottom: 'none' },
+          }}
         >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -655,6 +1094,7 @@ export default function ProductsPage() {
               layout='vertical'
               onFinish={handleSubmit}
               autoComplete='off'
+              size='large'
             >
               <Form.Item
                 name='product_title'
@@ -663,8 +1103,12 @@ export default function ProductsPage() {
                   { required: true, message: 'Please input product title!' },
                   { min: 3, message: 'Title must be at least 3 characters!' },
                 ]}
+                style={{ marginBottom: '20px' }}
               >
-                <Input placeholder='Enter product title' size='large' />
+                <Input
+                  placeholder='Enter product title'
+                  style={{ borderRadius: '12px' }}
+                />
               </Form.Item>
 
               <Form.Item
@@ -678,31 +1122,41 @@ export default function ProductsPage() {
                     message: 'Price must be positive!',
                   },
                 ]}
+                style={{ marginBottom: '20px' }}
               >
                 <InputNumber
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', borderRadius: '12px' }}
                   placeholder='Enter product price'
                   min={0}
-                  size='large'
                   formatter={(value) =>
                     `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                   }
-                  // parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
                 />
               </Form.Item>
 
-              <Form.Item name='product_description' label='Description'>
+              <Form.Item
+                name='product_description'
+                label='Description'
+                style={{ marginBottom: '20px' }}
+              >
                 <TextArea
-                  rows={4}
+                  rows={3}
                   placeholder='Enter product description'
                   maxLength={500}
                   showCount
-                  size='large'
+                  style={{ borderRadius: '12px' }}
                 />
               </Form.Item>
 
-              <Form.Item name='product_category' label='Category'>
-                <Input placeholder='Enter product category' size='large' />
+              <Form.Item
+                name='product_category'
+                label='Category'
+                style={{ marginBottom: '20px' }}
+              >
+                <Input
+                  placeholder='Enter product category'
+                  style={{ borderRadius: '12px' }}
+                />
               </Form.Item>
 
               <Form.Item
@@ -712,10 +1166,9 @@ export default function ProductsPage() {
                   {
                     validator: (_, value) => {
                       if (!value) {
-                        return Promise.resolve(); // Optional field
+                        return Promise.resolve();
                       }
 
-                      // Simple URL validation
                       if (
                         !value.startsWith('http://') &&
                         !value.startsWith('https://')
@@ -731,27 +1184,37 @@ export default function ProductsPage() {
                     },
                   },
                 ]}
+                style={{ marginBottom: '32px' }}
               >
                 <Input
                   placeholder='Enter image URL (e.g., https://example.com/image.jpg)'
-                  size='large'
+                  style={{ borderRadius: '12px' }}
                 />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                <Space>
-                  <Button onClick={() => setModalVisible(false)} size='large'>
+                <Space size='middle'>
+                  <Button
+                    onClick={() => setModalVisible(false)}
+                    size='large'
+                    style={{ borderRadius: '12px' }}
+                  >
                     Cancel
                   </Button>
-                  <Button type='primary' htmlType='submit' size='large'>
-                    {editingProduct ? 'Update' : 'Create'}
+                  <Button
+                    type='primary'
+                    htmlType='submit'
+                    size='large'
+                    style={{ borderRadius: '12px' }}
+                  >
+                    {editingProduct ? 'Update Product' : 'Create Product'}
                   </Button>
                 </Space>
               </Form.Item>
             </Form>
           </motion.div>
         </Modal>
-      </motion.div>
+      </div>
     </ProtectedRoute>
   );
 }
