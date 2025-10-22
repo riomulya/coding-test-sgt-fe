@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   Button,
@@ -48,173 +48,60 @@ import {
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import axios from 'axios';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { StatCard } from '@/components/products/StatCard';
+import { useProducts } from '@/hooks/useProducts'; // Import custom hook
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface Product {
-  product_id: string;
-  product_title: string;
-  product_price: number;
-  product_description?: string;
-  product_image?: string;
-  product_category?: string;
-  created_timestamp: string;
-  updated_timestamp: string;
-}
-
-interface ProductFormData {
-  product_title: string;
-  product_price: number;
-  product_description?: string;
-  product_image?: string;
-  product_category?: string;
-}
-
-// Update interface berdasarkan response yang sebenarnya
-interface ApiResponse {
-  status_code: string;
-  is_success: boolean;
-  error_code?: string;
-  data: Product[]; // Data langsung sebagai array
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    total_pages: number;
-    search?: string;
-  };
-}
-
 export default function ProductsPage() {
-  const { logout, getToken, loading: authLoading, user } = useAuth();
+  const { logout, loading: authLoading, user } = useAuth();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
-
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form] = Form.useForm();
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [totalValue, setTotalValue] = useState(0);
 
-  // Debounced search
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  // Gunakan custom hook
+  const {
+    products,
+    loading,
+    total,
+    currentPage,
+    pageSize,
+    searchTerm,
+    modalVisible,
+    editingProduct,
+    categories,
+    totalValue,
+    fetchProducts,
+    handleSearch,
+    handlePageChange,
+    handleCreate,
+    handleEdit,
+    handleDelete,
+    handleSubmit,
+    setModalVisible,
+  } = useProducts();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Fetch products - hanya jalankan jika user sudah login dan tidak loading
-  const fetchProducts = useCallback(async () => {
-    if (authLoading || !user) {
-      console.log('Auth still loading or user not logged in');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const token = await getToken();
-      console.log('Token:', token);
-
-      if (!token) {
-        console.error('No token available');
-        message.error('Authentication failed');
-        return;
-      }
-
-      const params = new URLSearchParams({
-        limit: pageSize.toString(),
-        offset: ((currentPage - 1) * pageSize).toString(),
-      });
-
-      if (debouncedSearchTerm) {
-        params.append('search', debouncedSearchTerm);
-      }
-
-      console.log('Fetching products with params:', params.toString());
-      const response = await axios.get<ApiResponse>(`/api/products?${params}`, {
-        headers: {
-          authorization: `Bearer ${token}`,
-        },
-      });
-
-      console.log('API Response:', response.data);
-
-      if (response.data.is_success) {
-        const fetchedProducts = response.data.data || [];
-        setProducts(fetchedProducts);
-        setTotal(response.data.pagination?.total || 0);
-
-        // Calculate statistics
-        const uniqueCategories = [
-          ...new Set(
-            fetchedProducts.map((p) => p.product_category).filter(Boolean)
-          ),
-        ];
-        setCategories(uniqueCategories as string[]);
-
-        const totalProductValue = fetchedProducts.reduce(
-          (sum, product) => sum + (product.product_price || 0),
-          0
-        );
-        setTotalValue(totalProductValue);
-      } else {
-        message.error('Failed to fetch products');
-        console.error('API Error:', response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      message.error('Failed to fetch products');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, debouncedSearchTerm, getToken, authLoading, user]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  // Handle search
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
-
-  // Handle pagination
-  const handlePageChange = (page: number, size?: number) => {
-    setCurrentPage(page);
-    if (size) {
-      setPageSize(size);
-    }
-  };
-
-  // Handle create product
-  const handleCreate = () => {
-    setEditingProduct(null);
+  // Handle form submit dengan form instance
+  const handleFormSubmit = async (values: any) => {
+    await handleSubmit(values);
     form.resetFields();
-    setModalVisible(true);
   };
 
-  // Handle edit product
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
+  // Handle create product dengan reset form
+  const handleCreateProduct = () => {
+    form.resetFields();
+    handleCreate();
+  };
+
+  // Handle edit product dengan set form values
+  const handleEditProduct = (product: any) => {
     form.setFieldsValue({
       product_title: product.product_title,
       product_price: product.product_price,
@@ -222,76 +109,7 @@ export default function ProductsPage() {
       product_image: product.product_image,
       product_category: product.product_category,
     });
-    setModalVisible(true);
-  };
-
-  // Handle delete product
-  const handleDelete = async (productId: string) => {
-    try {
-      const token = await getToken();
-      const response = await axios.delete(
-        `/api/product?product_id=${productId}`,
-        {
-          headers: {
-            ...(token && { authorization: `Bearer ${token}` }),
-          },
-        }
-      );
-      console.log(response.data);
-      if (response.data.is_success) {
-        message.success('Product deleted successfully');
-        fetchProducts(); // Refresh the list
-      } else {
-        message.error('Failed to delete product');
-      }
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      message.error(`Failed to delete product ${error}`);
-    }
-  };
-
-  // Handle form submit
-  const handleSubmit = async (values: ProductFormData) => {
-    try {
-      const token = await getToken();
-      const headers = {
-        ...(token && { authorization: `Bearer ${token}` }),
-      };
-
-      if (editingProduct) {
-        // Update product
-        const response = await axios.put(
-          '/api/product',
-          {
-            product_id: editingProduct.product_id,
-            ...values,
-          },
-          { headers }
-        );
-
-        if (response.data.is_success) {
-          message.success('Product updated successfully');
-          setModalVisible(false);
-          fetchProducts();
-        } else {
-          message.error('Failed to update product');
-        }
-      } else {
-        // Create product
-        const response = await axios.post('/api/product', values, { headers });
-
-        if (response.data.is_success) {
-          message.success('Product created successfully');
-          setModalVisible(false);
-          fetchProducts();
-        } else {
-          message.error('Failed to create product');
-        }
-      }
-    } catch (error) {
-      console.error('Error saving product:', error);
-      message.error('Failed to save product');
-    }
+    handleEdit(product);
   };
 
   // Add logout handler
@@ -305,7 +123,7 @@ export default function ProductsPage() {
     }
   };
 
-  // Table columns
+  // Table columns - tetap sama seperti sebelumnya
   const columns = [
     {
       title: '#',
@@ -340,8 +158,7 @@ export default function ProductsPage() {
       dataIndex: 'product_image',
       key: 'product_image',
       width: '10%',
-      render: (imageUrl: string, record: Product) => {
-        // Check if URL is valid before rendering Image component
+      render: (imageUrl: string, record: any) => {
         const isValidUrl =
           imageUrl &&
           typeof imageUrl === 'string' &&
@@ -371,7 +188,6 @@ export default function ProductsPage() {
                   sizes='60px'
                   style={{ objectFit: 'cover' }}
                   onError={(e) => {
-                    // Fallback jika gambar gagal dimuat
                     e.currentTarget.style.display = 'none';
                     e.currentTarget.nextElementSibling?.setAttribute(
                       'style',
@@ -507,7 +323,7 @@ export default function ProductsPage() {
       title: 'Actions',
       key: 'actions',
       width: '16%',
-      render: (_: any, record: Product) => (
+      render: (_: any, record: any) => (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -518,7 +334,7 @@ export default function ProductsPage() {
               type='primary'
               size='small'
               icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
+              onClick={() => handleEditProduct(record)}
               style={{ width: '100%' }}
             >
               Edit
@@ -545,55 +361,7 @@ export default function ProductsPage() {
     },
   ];
 
-  //  Statistics Cards
-  const StatCard = ({ title, value, icon, color, prefix }: any) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      whileHover={{ scale: 1.02 }}
-    >
-      <Card
-        style={{
-          borderRadius: '16px',
-          background: `linear-gradient(135deg, ${color}15, ${color}05)`,
-          border: `1px solid ${color}30`,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-        }}
-      >
-        <Row align='middle' gutter={16}>
-          <Col>
-            <div
-              style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '12px',
-                background: `linear-gradient(135deg, ${color}, ${color}CC)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px',
-                color: 'white',
-              }}
-            >
-              {icon}
-            </div>
-          </Col>
-          <Col flex={1}>
-            <Statistic
-              title={title}
-              value={value}
-              prefix={prefix}
-              valueStyle={{ color, fontSize: '24px', fontWeight: 'bold' }}
-              // titleStyle={{ color: '#666', fontSize: '14px' }}
-            />
-          </Col>
-        </Row>
-      </Card>
-    </motion.div>
-  );
-
-  // Grid View Component
+  // Grid View Component - tetap sama
   const ProductGrid = () => (
     <Row gutter={[24, 24]}>
       {products.map((product, index) => (
@@ -662,7 +430,7 @@ export default function ProductsPage() {
                 <Tooltip title='Edit'>
                   <EditOutlined
                     key='edit'
-                    onClick={() => handleEdit(product)}
+                    onClick={() => handleEditProduct(product)}
                   />
                 </Tooltip>,
                 <Tooltip title='Delete'>
@@ -745,7 +513,7 @@ export default function ProductsPage() {
           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         }}
       >
-        {/* Header */}
+        {/* Header - tetap sama */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -932,7 +700,7 @@ export default function ProductsPage() {
                     <Button
                       type='primary'
                       icon={<PlusOutlined />}
-                      onClick={handleCreate}
+                      onClick={handleCreateProduct}
                       size={screens.xs ? 'middle' : 'large'}
                       style={{ borderRadius: '12px' }}
                     >
@@ -1012,7 +780,7 @@ export default function ProductsPage() {
           icon={<PlusOutlined />}
           type='primary'
           style={{ right: 24, bottom: 24 }}
-          onClick={handleCreate}
+          onClick={handleCreateProduct}
           tooltip='Add New Product'
         />
 
@@ -1029,7 +797,7 @@ export default function ProductsPage() {
               type='primary'
               icon={<PlusOutlined />}
               onClick={() => {
-                handleCreate();
+                handleCreateProduct();
                 setDrawerVisible(false);
               }}
               block
@@ -1092,7 +860,7 @@ export default function ProductsPage() {
             <Form
               form={form}
               layout='vertical'
-              onFinish={handleSubmit}
+              onFinish={handleFormSubmit}
               autoComplete='off'
               size='large'
             >
