@@ -33,6 +33,7 @@ import Image from 'next/image';
 import axios from 'axios';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -73,6 +74,7 @@ interface ApiResponse {
 
 export default function ProductsPage() {
   const { logout, getToken, loading: authLoading, user } = useAuth();
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -275,15 +277,21 @@ export default function ProductsPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2, delay: index * 0.05 }}
         >
-          <span
+          <Button
+            type='link'
+            onClick={() =>
+              router.push(`/products/${products[index]?.product_id}`)
+            }
             style={{
               fontWeight: 'bold',
               color: '#1890ff',
               fontSize: '14px',
+              padding: 0,
+              height: 'auto',
             }}
           >
             {(currentPage - 1) * pageSize + index + 1}
-          </span>
+          </Button>
         </motion.div>
       ),
     },
@@ -543,9 +551,14 @@ export default function ProductsPage() {
               </p>
               {user && (
                 <p
-                  style={{ margin: '4px 0 0 0', color: '#999', fontSize: '12px' }}
+                  style={{
+                    margin: '4px 0 0 0',
+                    color: '#999',
+                    fontSize: '12px',
+                  }}
                 >
-                  Welcome, {user.email} {user.displayName && `(${user.displayName})`}
+                  Welcome, {user.email}{' '}
+                  {user.displayName && `(${user.displayName})`}
                 </p>
               )}
             </Col>
