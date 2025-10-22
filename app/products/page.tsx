@@ -18,13 +18,10 @@ import {
   Typography,
   Avatar,
   Spin,
-  Statistic,
   Tag,
   Tooltip,
-  Badge,
   Drawer,
   FloatButton,
-  Affix,
   Grid,
 } from 'antd';
 
@@ -32,19 +29,14 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SearchOutlined,
-  ReloadOutlined,
   PictureOutlined,
   LogoutOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
   TagsOutlined,
   EyeOutlined,
-  FilterOutlined,
   MenuOutlined,
-  CloseOutlined,
-  AppstoreOutlined,
-  UnorderedListOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -53,10 +45,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { StatCard } from '@/components/products/StatCard';
 import { useProducts } from '@/hooks/useProducts';
-import { ProductModal } from '@/components/products/ProductModal'; // Import ProductModal
+import { ProductModal } from '@/components/products/ProductModal';
+import { ProductControls } from '@/components/products/ProductControls';
+import { ProductGrid } from '@/components/products/ProductGrid';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 export default function ProductsPage() {
   const { logout, loading: authLoading, user } = useAuth();
@@ -124,7 +117,7 @@ export default function ProductsPage() {
     }
   };
 
-  // Table columns - tetap sama seperti sebelumnya
+  // Table columns
   const columns = [
     {
       title: '#',
@@ -362,127 +355,6 @@ export default function ProductsPage() {
     },
   ];
 
-  // Grid View Component - tetap sama
-  const ProductGrid = () => (
-    <Row gutter={[24, 24]}>
-      {products.map((product, index) => (
-        <Col xs={24} sm={12} md={8} lg={6} key={product.product_id}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            whileHover={{ scale: 1.02, y: -5 }}
-          >
-            <Card
-              hoverable
-              style={{
-                borderRadius: '16px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                overflow: 'hidden',
-                height: '100%',
-              }}
-              cover={
-                <div style={{ height: '200px', position: 'relative' }}>
-                  {product.product_image &&
-                  product.product_image.startsWith('http') ? (
-                    <Image
-                      src={product.product_image}
-                      alt={product.product_title}
-                      fill
-                      sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw'
-                      style={{ objectFit: 'cover' }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.setAttribute(
-                          'style',
-                          'display: flex'
-                        );
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    style={{
-                      display: product.product_image?.startsWith('http')
-                        ? 'none'
-                        : 'flex',
-                      width: '100%',
-                      height: '100%',
-                      background:
-                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontSize: '48px',
-                    }}
-                  >
-                    <ShoppingCartOutlined />
-                  </div>
-                </div>
-              }
-              actions={[
-                <Tooltip title='View Details'>
-                  <EyeOutlined
-                    key='view'
-                    onClick={() =>
-                      router.push(`/products/${product.product_id}`)
-                    }
-                  />
-                </Tooltip>,
-                <Tooltip title='Edit'>
-                  <EditOutlined
-                    key='edit'
-                    onClick={() => handleEditProduct(product)}
-                  />
-                </Tooltip>,
-                <Tooltip title='Delete'>
-                  <Popconfirm
-                    title='Delete this product?'
-                    onConfirm={() => handleDelete(product.product_id.trim())}
-                    okText='Yes'
-                    cancelText='No'
-                  >
-                    <DeleteOutlined key='delete' />
-                  </Popconfirm>
-                </Tooltip>,
-              ]}
-            >
-              <Card.Meta
-                title={
-                  <Text strong style={{ fontSize: '16px' }}>
-                    {product.product_title}
-                  </Text>
-                }
-                description={
-                  <div>
-                    <div style={{ marginBottom: '8px' }}>
-                      <Text
-                        style={{
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                          color: '#52c41a',
-                        }}
-                      >
-                        ${product.product_price?.toLocaleString() || '0'}
-                      </Text>
-                    </div>
-                    {product.product_category && (
-                      <Tag color='blue' style={{ marginBottom: '8px' }}>
-                        {product.product_category}
-                      </Tag>
-                    )}
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      {product.product_description?.substring(0, 60)}...
-                    </div>
-                  </div>
-                }
-              />
-            </Card>
-          </motion.div>
-        </Col>
-      ))}
-    </Row>
-  );
-
   // Show loading spinner while auth is loading
   if (authLoading) {
     return (
@@ -514,7 +386,7 @@ export default function ProductsPage() {
           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         }}
       >
-        {/* Header - tetap sama */}
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -643,75 +515,16 @@ export default function ProductsPage() {
             </Col>
           </Row>
 
-          {/* Controls */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <Card
-              style={{
-                borderRadius: '16px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                marginBottom: '24px',
-              }}
-            >
-              <Row gutter={[16, 16]} align='middle'>
-                <Col xs={24} sm={12} md={8}>
-                  <Input
-                    placeholder='🔍 Search products...'
-                    prefix={<SearchOutlined />}
-                    value={searchTerm}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    allowClear
-                    size='large'
-                    style={{ borderRadius: '12px' }}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={8}>
-                  <Space>
-                    <Button
-                      type={viewMode === 'table' ? 'primary' : 'default'}
-                      icon={<UnorderedListOutlined />}
-                      onClick={() => setViewMode('table')}
-                      size={screens.xs ? 'middle' : 'large'}
-                    >
-                      {!screens.xs && 'Table'}
-                    </Button>
-                    <Button
-                      type={viewMode === 'grid' ? 'primary' : 'default'}
-                      icon={<AppstoreOutlined />}
-                      onClick={() => setViewMode('grid')}
-                      size={screens.xs ? 'middle' : 'large'}
-                    >
-                      {!screens.xs && 'Grid'}
-                    </Button>
-                  </Space>
-                </Col>
-                <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
-                  <Space>
-                    <Button
-                      icon={<ReloadOutlined />}
-                      onClick={fetchProducts}
-                      loading={loading}
-                      size={screens.xs ? 'middle' : 'large'}
-                    >
-                      {!screens.xs && 'Refresh'}
-                    </Button>
-                    <Button
-                      type='primary'
-                      icon={<PlusOutlined />}
-                      onClick={handleCreateProduct}
-                      size={screens.xs ? 'middle' : 'large'}
-                      style={{ borderRadius: '12px' }}
-                    >
-                      {!screens.xs && 'Add Product'}
-                    </Button>
-                  </Space>
-                </Col>
-              </Row>
-            </Card>
-          </motion.div>
+          {/* Controls - MENGGUNAKAN KOMPONEN TERPISAH */}
+          <ProductControls
+            searchTerm={searchTerm}
+            viewMode={viewMode}
+            loading={loading}
+            onSearch={handleSearch}
+            onRefresh={fetchProducts}
+            onCreate={handleCreateProduct}
+            onViewModeChange={setViewMode}
+          />
 
           {/* Content Area */}
           <motion.div
@@ -738,7 +551,12 @@ export default function ProductsPage() {
                 />
               </Card>
             ) : (
-              <ProductGrid />
+              // MENGGUNAKAN KOMPONEN PRODUCT GRID TERPISAH
+              <ProductGrid
+                products={products}
+                onEdit={handleEditProduct}
+                onDelete={handleDelete}
+              />
             )}
           </motion.div>
 
@@ -833,7 +651,7 @@ export default function ProductsPage() {
           </Space>
         </Drawer>
 
-        {/* Product Modal - DIUBAH MENGGUNAKAN KOMPONEN TERPISAH */}
+        {/* Product Modal */}
         <ProductModal
           visible={modalVisible}
           editingProduct={editingProduct}
