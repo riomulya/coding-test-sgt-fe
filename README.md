@@ -18,20 +18,67 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## With Firebase Authentication
 
-To learn more about Next.js, take a look at the following resources:
+env.local tidak di masukan ke dalam gitignore untuk keperluan testing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## backend error parsing token
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+pada firebase-client
 
-## Deploy on Vercel
+awal seperti ini
+    async getFirebaseId(authorization: string, namespace = this.webNamespace) {
+      try {
+        this.initializeFirebaseAdmin();
+        return await admin.app(namespace).auth().verifyIdToken(authorization);
+      } catch (err) {
+        throw new Error(
+          'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token in Authorization.'
+        );
+      }
+    }
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+diganti menjadi seperti ini
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# coding-test-sgt-fe
+  async getFirebaseId(authorization: string, namespace = this.webNamespace) {
+    try {
+      this.initializeFirebaseAdmin();
+
+      //  Log untuk debugging (jangan lupa hapus di production)
+      console.log(
+        'Received authorization header:',
+        authorization ? `${authorization.substring(0, 20)}...` : 'null'
+      );
+
+      //  Potong prefix 'Bearer ' jika ada
+      let token = authorization;
+      if (authorization && authorization.startsWith('Bearer ')) {
+        token = authorization.substring(7);
+      }
+
+      console.log(
+        'Token after removing Bearer:',
+        token ? `${token.substring(0, 20)}...` : 'null'
+      );
+
+      if (!token) {
+        throw new Error('No token provided');
+      }
+
+      const decodedToken = await admin
+        .app(namespace)
+        .auth()
+        .verifyIdToken(token);
+      console.log('Token decoded successfully for user:', decodedToken.email);
+      return decodedToken;
+    } catch (err) {
+      console.error('Error verifying ID token:', err);
+      throw new Error(
+        'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token in Authorization.'
+      );
+    }
+  }
+
+
+  
